@@ -1,0 +1,83 @@
+#!/bin/bash
+#
+# fpolicyd        Startup script for fpolicyd
+#
+# chkconfig: - 85 15
+# processname: fpolicyd
+# config: /etc/fpolicyd/fpolicyd -g.conf
+# config: /etc/sysconfig/fpolicyd
+# pidfile: /var/run/fpolicyd.pid
+# description: fpolicyd is socket policy file server for flash player
+#
+### BEGIN INIT INFO
+# Provides: fpolicyd
+# Required-Start: $local_fs $remote_fs $network
+# Required-Stop: $local_fs $remote_fs $network
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# Short-Description: start and stop fpolicyd
+### END INIT INFO
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+if [ -f /etc/sysconfig/fpolicyd ]; then
+    . /etc/sysconfig/fpolicyd
+fi
+
+prog=fpolicyd
+fpolicyd=/usr/sbin/fpolicyd
+port=843
+loglevel=${LOGLEVEL-2}
+policyfile=${POLICY-/etc/fpolicy.xml}
+logfile=${LOGFILE-/var/log/fpolicyd.log}
+lockfile=${LOCKFILE-/var/lock/subsys/fpolicyd}
+pidfile=${PIDFILE-/var/run/fpolicyd.pid}
+RETVAL=0
+args="-p $port -f $policyfile -l $loglevel -r $logfile"
+
+start() {
+    echo -n $"Starting $prog: "
+
+    daemon --pidfile=${pidfile} ${fpolicyd} $args
+    RETVAL=$?
+    echo
+    [ $RETVAL = 0 ] && touch ${lockfile}
+    pid=$(pidof fpolicyd)
+    echo $pid >$pidfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc -p ${pidfile} ${prog}
+    RETVAL=$?
+    echo
+    [ $RETVAL = 0 ] && rm -f ${lockfile} ${pidfile}
+}
+rh_status() {
+    status -p ${pidfile} ${fpolicyd}
+}
+# See how we were called.
+case "$1" in
+    start)
+        rh_status >/dev/null 2>&1 && exit 0
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        rh_status
+        RETVAL=$?
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo $"Usage: $prog {start|stop|restart|status}"
+        RETVAL=2
+esac
+
+exit $RETVAL
